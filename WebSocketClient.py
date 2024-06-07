@@ -9,25 +9,19 @@ logger = configure_logger()
 
 
 class WebSocketClient:
-    def __init__(self, ws_url, log_code_prefix, sfu_component, role, voice_bridge, user_id, cookies, turn_servers,
-                 **kwargs):
+    def __init__(self, turns_servers, **kwargs):
         self.id = kwargs.get("id", "start")
-        self.type = kwargs.get("type", "screenshare")
-        self.contentType = kwargs.get("contentType", "screenshare")
-        self.internalMeetingId = kwargs.get("internalMeetingId", "")
-        self.voiceBridge = kwargs.get("voiceBridge", "02799")
-        self.userName = kwargs.get("userName", "User")
-        self.callerName = kwargs.get("callerName", "Caller")
+        self.type = kwargs.get("sfu_component", "screenshare")
+        self.contentType = kwargs.get("sfu_component", "screenshare")
+        self.internalMeetingId = kwargs.get("internalMeetingId")
+        self.voiceBridge = kwargs.get("voiceBridge")
+        self.userName = kwargs.get("userName")
+        self.callerName = kwargs.get("callerName")
         self.hasAudio = kwargs.get("hasAudio", False)
         self.bitrate = kwargs.get("bitrate", 1500)
-        self.ws_url = ws_url
-        self.log_code_prefix = log_code_prefix
-        self.sfu_component = sfu_component
-        self.role = role
-        self.voice_bridge = voice_bridge
-        self.user_id = user_id
-        self.cookies = cookies
-        self.turn_servers = turn_servers
+        self.cookies = kwargs.get("cookies")
+        self.turn_servers = json.loads(kwargs.get("turn_servers"))
+        self.ws_url = kwargs.get("ws_url")
         self.pc = RTCPeerConnection(RTCConfiguration(iceServers=self._parse_turn_servers()))
         self.websocket = None
 
