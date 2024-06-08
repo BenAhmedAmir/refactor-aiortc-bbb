@@ -1,15 +1,13 @@
 import asyncio
 import json
-
 import websockets
 from aiortc import RTCPeerConnection, RTCConfiguration, RTCSessionDescription, RTCIceCandidate, RTCIceServer
 from Logger import configure_logger
 
 logger = configure_logger()
 
-
 class WebSocketClient:
-    def __init__(self, turns_servers, **kwargs):
+    def __init__(self, **kwargs):
         self.id = kwargs.get("id", "start")
         self.type = kwargs.get("sfu_component", "screenshare")
         self.contentType = kwargs.get("sfu_component", "screenshare")
@@ -20,8 +18,9 @@ class WebSocketClient:
         self.hasAudio = kwargs.get("hasAudio", False)
         self.bitrate = kwargs.get("bitrate", 1500)
         self.cookies = kwargs.get("cookies")
-        self.turn_servers = json.loads(kwargs.get("turn_servers"))
+        self.turn_servers = kwargs.get("turn_servers", [])
         self.ws_url = kwargs.get("ws_url")
+        self.role = kwargs.get("role", "viewer")  # Ensure role is provided
         self.pc = RTCPeerConnection(RTCConfiguration(iceServers=self._parse_turn_servers()))
         self.websocket = None
 
@@ -52,7 +51,7 @@ class WebSocketClient:
             await self.websocket.send(json_message)
             logger.info(f"Sent message: {json_message}")
         except Exception as error:
-            logger.error(f"Failed to send WebSocket message ({self.sfu_component}): {error}")
+            logger.error(f"Failed to send WebSocket message ({self.type}): {error}")
 
     async def generate_local_description(self):
         """Generate and return the local SDP description."""
