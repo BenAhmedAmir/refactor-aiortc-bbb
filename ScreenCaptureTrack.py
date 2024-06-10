@@ -23,15 +23,20 @@ class ScreenCaptureTrack(VideoStreamTrack):
 
     def set_capture_area(self, rect):
         """Set the capture area for screen capture."""
-        self.monitor = {"top": rect.top(), "left": rect.left(), "width": rect.width(), "height": rect.height()}
+        self.monitor = {
+            "top": rect.top,
+            "left": rect.left,
+            "width": rect.width,
+            "height": rect.height
+        }
 
     async def recv(self):
         """Capture and return the next video frame."""
         pts, time_base = await self.next_timestamp()
-        now = time.time()
+        now = time.monotonic()
         if now - self._last_frame_time < self.frame_rate:
             await asyncio.sleep(self.frame_rate - (now - self._last_frame_time))
-        self._last_frame_time = time.time()
+        self._last_frame_time = time.monotonic()
 
         frame = np.array(self.sct.grab(self.monitor))
         frame = VideoFrame.from_ndarray(frame, format="bgra")
@@ -40,7 +45,7 @@ class ScreenCaptureTrack(VideoStreamTrack):
         return frame
 
 
-async def attempt_connection(ws_client, attempts=1, delay=2):
+async def attempt_connection(ws_client, attempts=3, delay=2):
     """Attempt to connect and establish a WebRTC connection with retries."""
     for attempt in range(attempts):
         try:

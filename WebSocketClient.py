@@ -74,6 +74,7 @@ class WebSocketClient:
     async def send_local_description(self):
         """Send the local SDP description to the WebSocket server."""
         local_description = await self.generate_local_description()
+        sdp = self.modify_sdp(local_description.sdp)
         message = {
             "id": self.id,
             "type": self.type,
@@ -83,7 +84,7 @@ class WebSocketClient:
             "voiceBridge": self.voiceBridge,
             "userName": self.userName,
             "callerName": self.callerName,
-            "sdpOffer": local_description.sdp,
+            "sdpOffer": sdp,
             "hasAudio": self.hasAudio,
             "bitrate": self.bitrate
         }
@@ -134,3 +135,34 @@ class WebSocketClient:
                 credential=turn_server["password"]
             ))
         return ice_servers
+
+    def modify_sdp(self,sdp):
+        # Split SDP into lines for easier manipulation
+        sdp_lines = sdp.split('\r\n')
+
+        # Insert additional attributes or modify existing ones
+        sdp_lines = [line if not line.startswith('a=msid-semantic:') else 'a=msid-semantic: WMS *' for line in
+                     sdp_lines]
+
+        # Add extmap-allow-mixed attribute
+        session_attributes = ['a=extmap-allow-mixed']
+        sdp_lines[4:4] = session_attributes  # Assuming session attributes start at line 4
+
+        # Add additional codec mappings and attributes for video
+        video_attributes = [
+            'a=rtpmap:97 VP8/90000',
+            'a=rtpmap:102 H264/90000',
+            'a=rtcp-fb:102 goog-remb',
+            'a=rtcp-fb:102 transport-cc',
+            'a=rtcp-fb:102 ccm fir',
+            'a=rtcp-fb:102 nack',
+            'a=rtcp-fb:102 nack pli',
+            'a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f'
+        ]
+        for i, line in enumerate(sdp_lines):
+            if line.startswith('m=video'):
+                sdp_lines[i:i] = video_attributes
+                break
+
+        # Join modified SDP lines
+        return '\r\n'.join(sdp_lines)
