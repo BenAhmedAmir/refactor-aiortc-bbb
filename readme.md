@@ -2,15 +2,15 @@
 
 # 
     python3 AiortcBBB.py \
-    --ws_url "wss://bbb.ostedhy.tn/bbb-webrtc-sfu?sessionToken=gna6oqfebqtfpizg" \
+    --ws_url "wss://bbb.ostedhy.tn/bbb-webrtc-sfu?sessionToken=7cvithhhxjsm5vuv" \
     --sfu_component "screenshare" \
     --role "send" \
-    --internalMeetingId "7c22338bce3c6e485ac2f2d872f2f24816d53011-1717884895286" \
+    --internalMeetingId "7c22338bce3c6e485ac2f2d872f2f24816d53011-1718092523886" \
     --userName "Amir" \
     --voice_bridge "66711" \
-    --callerName "w_diqytck8stah" \
-    --cookies "_greenlight-3_0_session=BEZJqqJsLKOQaHkUlSfLQa6HwgwGTiXqAG9zG0fsVQFLswCbEwc%2BGYxh4mxY6SrNL2yb1MgE2JRugP%2B69M59EN%2Fyzjp93Db6TPgjSAbNXqQA3T25eS9Bz%2Bb%2FJ6x7UoiHRzU5IAC%2B6cS9OMYLeTCVvSIMxgP4eKTSvpVVuI9gOU4EVk1YgrL68w5Q4XNHzfsd5z1GQuoUi3hmuJ%2FltPuCNI%2BFT9t0UwelYrvvlDHevvcluAHh%2FxjaL9lqWFT1fMSxl0%2FT1Iu6vR5BjhsMxSzhFSi5SX4oeuHoILXy8U5uKv61zBGgp2aIcHPuB4xVkbiJaBL%2FNGCkARYe8bsIOs%2FWrrW%2Ba1KFHffAqzdNF%2B5plP9L1I9D8PZtlIjlybFXFJAJRxxOy%2BFdlGU7%2B5xtQsvnha%2F52C8B4QNyYtb0DrfXC5vP4D7fer8RlALGwA%3D%3D--CRt%2BwiG%2FEKFdyoij--mjt87a7VM%2FhW8whP1Pd%2BlA%3D%3D; JSESSIONID=3E34C5F2A53DB0AA6FC5B7D2CB6D6770" \
-    --turn_servers '[{"username": "1717972020:w_diqytck8stah","password": "cXh8G3U90HLZhgIgSSBBporTMx4=","url": "turns:bbb.ostedhy.tn:443?transport=tcp","ttl": 86400},{"username": "1717972020:w_diqytck8stah","password": "cXh8G3U90HLZhgIgSSBBporTMx4=","url": "turn:bbb.ostedhy.tn:3478","ttl": 86400}]'
+    --callerName "w_upakl74suq3s" \
+    --cookies "_greenlight-3_0_session=eGX30V5NXtAH9LBHMXmKRosawsetd%2BOkVh4zwILG3m0RIoDc4eFovCeXknHeYdeq2WOKbeubD2HJDgI6ADrKFvXpinXdDHb%2FzZvUnRh%2FKCucyHORIjc61EKGYHt8yyF%2BGC8BFupYF%2FVDF5gSbjIXtb9KoQxP7MZL1O32OKMcr3XFe3%2FSOncbidmKEf%2F3FOSwBGX%2BAQHvvrt3F6qM8KUVHgTCLbJhQLGgnP2w1OsDuIHOy1Eeys5r0FiuDWRFZYg%2BhCxW7F%2BK9Gh69btG42GUW5pvh%2FxAzKGp6dabMb%2F4Tkkx%2FdGcdkRxuUpXPSXmofzHAYHie%2Bvm5Xs1FNt1F0H55D%2FiE4x0uOu4M%2FwwlsK5uK4SCSvZP8H755est6VDZRIQ8vDTY2a2mSVeNNQn4ExQmtpHFoj0f8zG09qwkQMa3x7cJf%2BF%2FB9wtuwoOw%3D%3D--O3OldhhhpjBzHlOv--iCE%2BLAyjm5TC7q0wT7BU%2Bw%3D%3D; JSESSIONID=BECC668454B5F2EBCD7D9E249274BBA9" \
+    --turn_servers '[{"username": "1718178928:w_upakl74suq3s","password": "QXbTGY/LGtxSD+Abv8Bled//VFg=","url": "turns:bbb.ostedhy.tn:443?transport=tcp","ttl": 86400},{"username": "1718178928:w_upakl74suq3s","password": "QXbTGY/LGtxSD+Abv8Bled//VFg=","url": "turn:bbb.ostedhy.tn:3478","ttl": 86400}]'
 o=- 3926879746 3926879746 IN IP4 0.0.0.0
 s=-
 t=0 0

@@ -1,10 +1,44 @@
 import asyncio
 import json
 import websockets
-from aiortc import RTCPeerConnection, RTCConfiguration, RTCSessionDescription, RTCIceCandidate, RTCIceServer
+from aiortc import RTCPeerConnection, RTCConfiguration, RTCSessionDescription, RTCIceCandidate, RTCIceServer, \
+    RTCRtpCodecParameters, RTCRtpCodecCapability, RTCRtpCapabilities
 from Logger import configure_logger
 
 logger = configure_logger()
+
+
+def modify_sdp(sdp):
+    # Split SDP into lines for easier manipulation
+    sdp_lines = sdp.split('\r\n')
+
+    # Insert additional attributes or modify existing ones
+    sdp_lines = [line if not line.startswith('a=msid-semantic:') else 'a=msid-semantic: WMS *' for line in
+                 sdp_lines]
+
+    # Add extmap-allow-mixed attribute
+    session_attributes = ['a=extmap-allow-mixed']
+    sdp_lines[4:4] = session_attributes  # Assuming session attributes start at line 4
+
+    # Add additional codec mappings and attributes for video
+    video_attributes = [
+        'a=rtpmap:97 VP8/90000',
+        'a=rtpmap:102 H264/90000',
+        'a=rtcp-fb:102 goog-remb',
+        'a=rtcp-fb:102 transport-cc',
+        'a=rtcp-fb:102 ccm fir',
+        'a=rtcp-fb:102 nack',
+        'a=rtcp-fb:102 nack pli',
+        'a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f'
+    ]
+    for i, line in enumerate(sdp_lines):
+        if line.startswith('m=video'):
+            sdp_lines[i:i] = video_attributes
+            break
+
+    # Join modified SDP lines
+    return '\r\n'.join(sdp_lines)
+
 
 class WebSocketClient:
     def __init__(self, **kwargs):
@@ -55,7 +89,25 @@ class WebSocketClient:
 
     async def generate_local_description(self):
         """Generate and return the local SDP description."""
-        await self.pc.setLocalDescription(await self.pc.createOffer())
+        offer_options = {
+            'offerToReceiveAudio': False,
+            'offerToReceiveVideo': False
+        }
+        video_transceiver = self.pc.getTransceivers()[0]
+        capabilities = RTCRtpCapabilities(codecs=video_transceiver.sender.getCapabilities("video").codecs)
+        desired_codecs = [
+            RTCRtpCodecParameters(mimeType="video/VP8", clockRate=90000),
+            RTCRtpCodecParameters(mimeType="video/H264", clockRate=90000, parameters={"profile-level-id": "42e01f"}),
+            RTCRtpCodecParameters(mimeType="video/H264", clockRate=90000, parameters={"profile-level-id": "42001f"}),
+            RTCRtpCodecParameters(mimeType="video/VP9", clockRate=90000),
+            RTCRtpCodecParameters(mimeType="video/AV1", clockRate=90000),
+        ]
+        print(desired_codecs)
+        supported_codecs = [codec for codec in desired_codecs if codec in capabilities.codecs]
+
+        # video_transceiver.setCodecPreferences(supported_codecs)
+        offer = await self.pc.createOffer()
+        await self.pc.setLocalDescription(offer)
         await self.wait_for_ice_gathering()
         logger.info(f"Generated local description: {self.pc.localDescription.sdp}")
         return self.pc.localDescription
@@ -74,7 +126,7 @@ class WebSocketClient:
     async def send_local_description(self):
         """Send the local SDP description to the WebSocket server."""
         local_description = await self.generate_local_description()
-        sdp = self.modify_sdp(local_description.sdp)
+        sdp = modify_sdp(local_description.sdp)
         message = {
             "id": self.id,
             "type": self.type,
@@ -136,33 +188,11 @@ class WebSocketClient:
             ))
         return ice_servers
 
-    def modify_sdp(self,sdp):
-        # Split SDP into lines for easier manipulation
-        sdp_lines = sdp.split('\r\n')
 
-        # Insert additional attributes or modify existing ones
-        sdp_lines = [line if not line.startswith('a=msid-semantic:') else 'a=msid-semantic: WMS *' for line in
-                     sdp_lines]
-
-        # Add extmap-allow-mixed attribute
-        session_attributes = ['a=extmap-allow-mixed']
-        sdp_lines[4:4] = session_attributes  # Assuming session attributes start at line 4
-
-        # Add additional codec mappings and attributes for video
-        video_attributes = [
-            'a=rtpmap:97 VP8/90000',
-            'a=rtpmap:102 H264/90000',
-            'a=rtcp-fb:102 goog-remb',
-            'a=rtcp-fb:102 transport-cc',
-            'a=rtcp-fb:102 ccm fir',
-            'a=rtcp-fb:102 nack',
-            'a=rtcp-fb:102 nack pli',
-            'a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f'
-        ]
-        for i, line in enumerate(sdp_lines):
-            if line.startswith('m=video'):
-                sdp_lines[i:i] = video_attributes
-                break
-
-        # Join modified SDP lines
-        return '\r\n'.join(sdp_lines)
+media_constraints = {
+    'audio': False,  # Disable audio for sender-only
+    'video': {
+        'mandatory': [{'width': 640}, {'height': 360}],  # Example resolution
+        'optional': [{'goog-codec': 'vp8'}, {'goog-codec': 'h264'}, {'goog-codec': 'av1'}]  # Example codecs
+    }
+}

@@ -1,16 +1,17 @@
 import asyncio
 import time
 
+import cv2
 import mss
 import numpy as np
 from aiortc import VideoStreamTrack
+from aiortc.mediastreams import MediaStreamError
 from av import VideoFrame
 from Logger import configure_logger
-
 logger = configure_logger()
 
 
-class ScreenCaptureTrack(VideoStreamTrack):
+class ScreenShareTrack(VideoStreamTrack):
     kind = "video"
 
     def __init__(self, fps=30):
@@ -22,21 +23,15 @@ class ScreenCaptureTrack(VideoStreamTrack):
         self._last_frame_time = 0
 
     def set_capture_area(self, rect):
-        """Set the capture area for screen capture."""
-        self.monitor = {
-            "top": rect.top,
-            "left": rect.left,
-            "width": rect.width,
-            "height": rect.height
-        }
+        self.monitor = {"top": rect.top(), "left": rect.left(), "width": rect.width(), "height": rect.height()}
 
     async def recv(self):
-        """Capture and return the next video frame."""
         pts, time_base = await self.next_timestamp()
-        now = time.monotonic()
+        print('salem')
+        now = time.time()
         if now - self._last_frame_time < self.frame_rate:
             await asyncio.sleep(self.frame_rate - (now - self._last_frame_time))
-        self._last_frame_time = time.monotonic()
+        self._last_frame_time = time.time()
 
         frame = np.array(self.sct.grab(self.monitor))
         frame = VideoFrame.from_ndarray(frame, format="bgra")
@@ -45,16 +40,15 @@ class ScreenCaptureTrack(VideoStreamTrack):
         return frame
 
 
-async def attempt_connection(ws_client, attempts=3, delay=2):
+async def attempt_connection(ws_client):
     """Attempt to connect and establish a WebRTC connection with retries."""
-    for attempt in range(attempts):
-        try:
-            await ws_client.connect()
-            ws_client.pc.addTrack(ScreenCaptureTrack())
-            await ws_client.send_local_description()
-            await ws_client.receive_messages()
-            return
-        except Exception as e:
-            logger.error(f"Attempt {attempt + 1}/{attempts} failed: {e}")
-            await asyncio.sleep(delay)
+    await ws_client.connect()
+    video_track = ScreenShareTrack()
+    ws_client.pc.addTrack(video_track)
+
+    # Create SDP offer and set local description
+    # await generate_local_description(ws_client.pc)
+
+    await ws_client.send_local_description()
+    await ws_client.receive_messages()
     logger.error("All attempts to establish connection failed")
