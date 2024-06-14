@@ -13,8 +13,7 @@ def modify_sdp(sdp):
     sdp_lines = sdp.split('\r\n')
 
     # Insert additional attributes or modify existing ones
-    sdp_lines = [line if not line.startswith('a=msid-semantic:') else 'a=msid-semantic: WMS *' for line in
-                 sdp_lines]
+    sdp_lines = [line if not line.startswith('a=msid-semantic:') else 'a=msid-semantic: WMS *' for line in sdp_lines]
 
     # Add extmap-allow-mixed attribute
     session_attributes = ['a=extmap-allow-mixed']
@@ -50,33 +49,45 @@ class WebSocketClient:
         self.userName = kwargs.get("userName")
         self.callerName = kwargs.get("callerName")
         self.hasAudio = kwargs.get("hasAudio", False)
-        self.bitrate = kwargs.get("bitrate", 1500)
+        self.bitrate = kwargs.get("bitrate", 2500)
         self.cookies = kwargs.get("cookies")
         self.turn_servers = kwargs.get("turn_servers", [])
         self.ws_url = kwargs.get("ws_url")
-        self.role = kwargs.get("role", "viewer")  # Ensure role is provided
+        self.role = kwargs.get("role", "viewer")
         self.pc = RTCPeerConnection(RTCConfiguration(iceServers=self._parse_turn_servers()))
         self.websocket = None
+        self.keep_alive_task = None
 
     async def connect(self):
-        """Establish a connection to the WebSocket server."""
         try:
             self.websocket = await websockets.connect(self.ws_url, extra_headers={"Cookie": self.cookies})
             logger.info(f"Connected to WebSocket server at {self.ws_url}")
-
-            # Setup event handlers for ICE candidates
-            @self.pc.on("icecandidate")
-            async def on_icecandidate(candidate):
-                if candidate:
-                    message = {
-                        'id': 'onIceCandidate',
-                        'candidate': candidate.toJSON()
-                    }
-                    await self.send_message(message)
-                    logger.info(f"Sent ICE candidate: {candidate}")
-
+            self.setup_peer_connection()
         except Exception as error:
             logger.error(f"Failed to connect to WebSocket server: {error}")
+            await self.reconnect()
+
+    def setup_peer_connection(self):
+        @self.pc.on("icecandidate")
+        async def on_icecandidate(candidate):
+            if candidate:
+                message = {
+                    'id': 'onIceCandidate',
+                    'candidate': candidate.toJSON()
+                }
+                await self.send_message(message)
+                logger.info(f"Sent ICE candidate: {candidate}")
+
+            @self.pc.on("iceconnectionstatechange")
+            async def on_iceconnectionstatechange():
+                logger.info(f"ICE connection state: {self.pc.iceConnectionState}")
+                if self.pc.iceConnectionState == "closed":
+                    logger.warning("ICE connection closed, attempting to reconnect...")
+                    await self.reconnect()
+
+            @self.pc.on("icegatheringstatechange")
+            async def on_icegatheringstatechange():
+                logger.info(f"ICE gathering state: {self.pc.iceGatheringState}")
 
     async def send_message(self, message):
         """Send a message over the WebSocket connection."""
@@ -89,23 +100,6 @@ class WebSocketClient:
 
     async def generate_local_description(self):
         """Generate and return the local SDP description."""
-        offer_options = {
-            'offerToReceiveAudio': False,
-            'offerToReceiveVideo': False
-        }
-        video_transceiver = self.pc.getTransceivers()[0]
-        capabilities = RTCRtpCapabilities(codecs=video_transceiver.sender.getCapabilities("video").codecs)
-        desired_codecs = [
-            RTCRtpCodecParameters(mimeType="video/VP8", clockRate=90000),
-            RTCRtpCodecParameters(mimeType="video/H264", clockRate=90000, parameters={"profile-level-id": "42e01f"}),
-            RTCRtpCodecParameters(mimeType="video/H264", clockRate=90000, parameters={"profile-level-id": "42001f"}),
-            RTCRtpCodecParameters(mimeType="video/VP9", clockRate=90000),
-            RTCRtpCodecParameters(mimeType="video/AV1", clockRate=90000),
-        ]
-        print(desired_codecs)
-        supported_codecs = [codec for codec in desired_codecs if codec in capabilities.codecs]
-
-        # video_transceiver.setCodecPreferences(supported_codecs)
         offer = await self.pc.createOffer()
         await self.pc.setLocalDescription(offer)
         await self.wait_for_ice_gathering()
@@ -114,14 +108,9 @@ class WebSocketClient:
 
     async def wait_for_ice_gathering(self):
         """Wait for ICE gathering to complete."""
-        await asyncio.sleep(0.5)  # Small delay to ensure ICE candidates are gathered
-        while True:
-            connection_state = self.pc.iceConnectionState
-            gathering_state = self.pc.iceGatheringState
-            logger.debug(f"ICE connection state: {connection_state}, ICE gathering state: {gathering_state}")
-            if gathering_state == "complete":
-                break
+        while self.pc.iceGatheringState != "complete":
             await asyncio.sleep(0.1)
+        logger.info("ICE gathering complete")
 
     async def send_local_description(self):
         """Send the local SDP description to the WebSocket server."""
@@ -140,9 +129,9 @@ class WebSocketClient:
             "hasAudio": self.hasAudio,
             "bitrate": self.bitrate
         }
-        ping = {"id": "ping"}
-        await self.send_message(ping)
+        await self.send_message({"id": "ping"})
         await self.send_message(message)
+        logger.info("SDP Offer sent to signaling server")
 
     async def receive_messages(self):
         """Receive and handle messages from the WebSocket server."""
@@ -169,6 +158,7 @@ class WebSocketClient:
             await self.pc.setRemoteDescription(sdp_answer)
             logger.info(f"Set remote description: {sdp_answer}")
         elif data['id'] == 'iceCandidate':
+            logger.info(f"Received ICE candidate: {data['candidate']}")  # Log received ICE candidate
             candidate = RTCIceCandidate(
                 sdpMid=data['candidate']['sdpMid'],
                 sdpMLineIndex=data['candidate']['sdpMLineIndex'],
@@ -176,6 +166,39 @@ class WebSocketClient:
             )
             await self.pc.addIceCandidate(candidate)
             logger.info(f"Added remote ICE candidate: {candidate}")
+
+    async def keep_alive(self):
+        """Send periodic keep-alive messages to the server."""
+        while True:
+            try:
+                await self.send_message({'id': 'ping'})
+                logger.info("Sent keepalive message")
+                await asyncio.sleep(30)  # Send keepalive every 30 seconds
+            except Exception as e:
+                logger.error(f"Error sending keepalive message: {e}")
+                break
+
+    async def reconnect(self):
+        max_retries = 5
+        backoff = 2
+
+        for attempt in range(max_retries):
+            try:
+                if self.keep_alive_task:
+                    self.keep_alive_task.cancel()
+                if self.websocket:
+                    await self.websocket.close()
+                logger.info("Attempting to reconnect...")
+                await asyncio.sleep(backoff * attempt)  # Exponential backoff
+                await self.connect()
+                await self.send_local_description()
+                self.keep_alive_task = asyncio.create_task(self.keep_alive())
+                await self.receive_messages()
+                return
+            except Exception as error:
+                logger.error(f"Reconnect attempt {attempt + 1} failed: {error}")
+
+        logger.error("All attempts to establish connection failed")
 
     def _parse_turn_servers(self):
         """Parse and return the TURN server configurations."""
@@ -187,12 +210,3 @@ class WebSocketClient:
                 credential=turn_server["password"]
             ))
         return ice_servers
-
-
-media_constraints = {
-    'audio': False,  # Disable audio for sender-only
-    'video': {
-        'mandatory': [{'width': 640}, {'height': 360}],  # Example resolution
-        'optional': [{'goog-codec': 'vp8'}, {'goog-codec': 'h264'}, {'goog-codec': 'av1'}]  # Example codecs
-    }
-}

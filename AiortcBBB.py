@@ -42,13 +42,8 @@ async def main():
 
     # Initialize and connect WebSocketClient
     ws_client = WebSocketClient(**ws_client_args)
-    await ws_client.connect()
-
-    # Attempt connection (assuming this sets up the media track)
     await attempt_connection(ws_client)
-
-    # Start receiving messages
-    await ws_client.receive_messages()
 
 if __name__ == "__main__":
     asyncio.run(main())
+
