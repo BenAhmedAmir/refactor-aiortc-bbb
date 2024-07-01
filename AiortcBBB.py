@@ -51,4 +51,5 @@ async def main():
     await ws_client.receive_messages()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # asyncio.run(main())
+    asyncio.get_event_loop().run_until_complete(main())

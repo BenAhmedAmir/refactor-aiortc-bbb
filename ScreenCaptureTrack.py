@@ -1,29 +1,35 @@
 import asyncio
 import time
 
-import cv2
 import mss
 import numpy as np
 from aiortc import VideoStreamTrack
-from aiortc.mediastreams import MediaStreamError
 from av import VideoFrame
+from av.frame import Frame
+
 from Logger import configure_logger
+
 logger = configure_logger()
 
 
 class ScreenShareTrack(VideoStreamTrack):
     kind = "video"
 
-    def __init__(self, fps=30):
+    def __init__(self, fps=30, width=None, height=None):
         super().__init__()
         self.fps = fps
+        self.width = width
+        self.height = height
         self.sct = mss.mss()
+        self.monitor = self.sct.monitors[1]  # Capture the primary monitor
         self.monitor = {"top": 50, "left": 250, "width": 800, "height": 600}
         self.frame_rate = 1 / self.fps
         self._last_frame_time = 0
+        print('outside')
 
-    def set_capture_area(self, rect):
-        self.monitor = {"top": rect.top(), "left": rect.left(), "width": rect.width(), "height": rect.height()}
+    # def set_capture_area(self, rect):
+    #     self.monitor = {"top": rect.top(), "left": rect.left(), "width": rect.width(), "height": rect.height()}
+
 
     async def recv(self):
         pts, time_base = await self.next_timestamp()
@@ -42,7 +48,7 @@ class ScreenShareTrack(VideoStreamTrack):
 
 async def attempt_connection(ws_client):
     """Attempt to connect and establish a WebRTC connection with retries."""
-    await ws_client.connect()
+    # await ws_client.connect()
     video_track = ScreenShareTrack()
     ws_client.pc.addTrack(video_track)
 
