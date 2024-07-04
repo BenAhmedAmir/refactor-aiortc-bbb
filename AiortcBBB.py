@@ -16,13 +16,13 @@ async def main():
     parser.add_argument("--userName", type=str, required=True, help="User name")
     parser.add_argument("--callerName", type=str, required=True, help="Caller Name")
     parser.add_argument("--cookies", type=str, required=True, help="Cookies for WebSocket connection")
-    parser.add_argument("--turn_servers", type=str, required=True, help="TURN servers in JSON format")
+    # parser.add_argument("--turn_servers", type=str, required=True, help="TURN servers in JSON format")
 
     args = parser.parse_args()
 
     # Convert TURN servers from JSON string to Python list
     try:
-        turn_servers = json.loads(args.turn_servers)
+        turn_servers = json.loads('[{"username": "1720185359:w_4ubm1haud4ey","password": "qYMsTxsddP+QKCZdhxwHU9YBFpM=","url": "turn:bbb.ostedhy.tn:3478","ttl": 86400}]')
     except json.JSONDecodeError as e:
         print(f"Invalid TURN servers JSON: {e}")
         return

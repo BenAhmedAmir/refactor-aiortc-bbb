@@ -1,9 +1,11 @@
+import ast
 import asyncio
 import json
 import websockets
 from aiortc import RTCPeerConnection, RTCConfiguration, RTCSessionDescription, RTCIceCandidate, RTCIceServer, \
-    RTCRtpCodecParameters, RTCRtpCodecCapability, RTCRtpCapabilities
+    RTCRtpCodecParameters, RTCRtpCapabilities
 from Logger import configure_logger
+from ScreenCaptureTrack import ScreenShareTrack
 
 logger = configure_logger()
 
@@ -151,6 +153,10 @@ class WebSocketClient:
             async for message in self.websocket:
                 logger.info(f"Received message: {message}")
                 await self.handle_message(message)
+                data = ast.literal_eval(message)
+                if data.get('id') == 'playStart':
+                    stream = ScreenShareTrack()
+                    asyncio.create_task(stream.recv())
         except Exception as error:
             logger.error(f"Error receiving messages: {error}")
         finally:
