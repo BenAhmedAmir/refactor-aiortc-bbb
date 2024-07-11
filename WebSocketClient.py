@@ -1,15 +1,18 @@
+import ast
 import asyncio
 import json
 import websockets
 from aiortc import RTCPeerConnection, RTCConfiguration, RTCSessionDescription, RTCIceCandidate, RTCIceServer, \
-    RTCRtpCodecParameters, RTCRtpCodecCapability, RTCRtpCapabilities
+    RTCRtpCodecParameters, RTCRtpCapabilities, RTCRtpSender
+from aiortc.rtcrtpparameters import RTCRtcpFeedback, RTCRtpCodecCapability
+
 from Logger import configure_logger
+from ScreenCaptureTrack import ScreenShareTrack
 
 logger = configure_logger()
 
 
 def modify_sdp(sdp):
-    # Split SDP into lines for easier manipulation
     sdp_lines = sdp.split('\r\n')
 
     # Insert additional attributes or modify existing ones
@@ -42,6 +45,9 @@ def modify_sdp(sdp):
 
 class WebSocketClient:
     def __init__(self, **kwargs):
+        self.screen_sharing = None
+        self.screen_share_track = None
+        self.screen_share_sender = None
         self.id = kwargs.get("id", "start")
         self.type = kwargs.get("sfu_component", "screenshare")
         self.contentType = kwargs.get("sfu_component", "screenshare")
@@ -89,23 +95,34 @@ class WebSocketClient:
 
     async def generate_local_description(self):
         """Generate and return the local SDP description."""
-        offer_options = {
-            'offerToReceiveAudio': False,
-            'offerToReceiveVideo': False
-        }
-        video_transceiver = self.pc.getTransceivers()[0]
-        capabilities = RTCRtpCapabilities(codecs=video_transceiver.sender.getCapabilities("video").codecs)
-        desired_codecs = [
-            RTCRtpCodecParameters(mimeType="video/VP8", clockRate=90000),
-            RTCRtpCodecParameters(mimeType="video/H264", clockRate=90000, parameters={"profile-level-id": "42e01f"}),
-            RTCRtpCodecParameters(mimeType="video/H264", clockRate=90000, parameters={"profile-level-id": "42001f"}),
-            RTCRtpCodecParameters(mimeType="video/VP9", clockRate=90000),
-            RTCRtpCodecParameters(mimeType="video/AV1", clockRate=90000),
-        ]
-        print(desired_codecs)
-        supported_codecs = [codec for codec in desired_codecs if codec in capabilities.codecs]
+        for transceiver in self.pc.getTransceivers():
+            if transceiver.kind == "video":
+                video_transceiver = transceiver
+                break
+        else:
+            raise ValueError("No video transceiver found")
 
-        # video_transceiver.setCodecPreferences(supported_codecs)
+            # Get available codecs
+        capabilities = RTCRtpSender.getCapabilities("video")
+        available_codecs = capabilities.codecs
+
+        # Define the codecs you want to use, in order of preference
+        preferred_codec_names = ["VP8", "H264", "VP9"]
+
+        # Filter and order codecs based on preferences and availability
+        preferred_codecs = []
+        for codec_name in preferred_codec_names:
+            for available_codec in available_codecs:
+                if codec_name in available_codec.mimeType:
+                    preferred_codecs.append(available_codec)
+                    break
+
+        if not preferred_codecs:
+            raise ValueError("No preferred codecs are available")
+
+        # Set the codec preferences
+        video_transceiver.setCodecPreferences(preferred_codecs)
+
         offer = await self.pc.createOffer()
         await self.pc.setLocalDescription(offer)
         await self.wait_for_ice_gathering()
@@ -145,12 +162,15 @@ class WebSocketClient:
         await self.send_message(message)
 
     async def receive_messages(self):
-        """Receive and handle messages from the WebSocket server."""
-        logger.info("Start receiving messages")
         try:
             async for message in self.websocket:
                 logger.info(f"Received message: {message}")
                 await self.handle_message(message)
+                data = ast.literal_eval(message)
+                if data.get('id') == 'playStart':
+                    self.screen_sharing = True
+                    # Start a continuous capture loop
+                    await asyncio.create_task(self.capture_loop())
         except Exception as error:
             logger.error(f"Error receiving messages: {error}")
         finally:
@@ -158,7 +178,6 @@ class WebSocketClient:
             logger.info("WebSocket connection closed")
 
     async def handle_message(self, message):
-        """Handle incoming messages from the WebSocket server."""
         data = json.loads(message)
         logger.info(f"Handling message: {data}")
 
@@ -188,11 +207,104 @@ class WebSocketClient:
             ))
         return ice_servers
 
+    async def stop(self):
+        """Stop the screenshare session."""
+        if self.status == 'MEDIA_STOPPED':
+            logger.warn('Screenshare session already stopped')
+            return
 
-media_constraints = {
-    'audio': False,  # Disable audio for sender-only
-    'video': {
-        'mandatory': [{'width': 640}, {'height': 360}],  # Example resolution
-        'optional': [{'goog-codec': 'vp8'}, {'goog-codec': 'h264'}, {'goog-codec': 'av1'}]  # Example codecs
-    }
-}
+        if self.status == 'MEDIA_STOPPING':
+            logger.warn('Screenshare session already stopping')
+            await self.wait_until_stopped()
+            logger.info('Screenshare delayed stop resolution for queued stop call')
+            return
+
+        if self.status == 'MEDIA_STARTING':
+            logger.warn('Screenshare session still starting on stop, wait.')
+            if not self._stopActionQueued:
+                self._stopActionQueued = True
+                await self.wait_until_negotiated()
+                logger.info('Screenshare delayed MEDIA_STARTING stop resolution')
+                await self.stop_presenter()
+            else:
+                await self.wait_until_stopped()
+                logger.info('Screenshare delayed stop resolution for queued stop call')
+            return
+
+        await self.stop_presenter()
+
+    async def wait_until_stopped(self):
+        """Wait until the media is stopped."""
+        while self.status != 'MEDIA_STOPPED':
+            await asyncio.sleep(0.1)
+
+    async def wait_until_negotiated(self):
+        """Wait until the media is negotiated."""
+        while self.status != 'MEDIA_NEGOTIATED':
+            await asyncio.sleep(0.1)
+
+    async def stop_presenter(self):
+        """Stop the presenter and handle errors."""
+        try:
+            # Add your logic to stop the presenter
+            self.status = 'MEDIA_STOPPING'
+            # Simulate stopping action
+            await asyncio.sleep(1)  # Simulate delay
+            self.status = 'MEDIA_STOPPED'
+            logger.info('Screenshare stopped successfully')
+        except Exception as error:
+            logger.error(f'Screenshare stop failed: {error}')
+            self.status = 'MEDIA_STOPPED'
+
+    async def restart_ice(self):
+        pass
+
+    # async def start_screen_share(self):
+    #     logger.info("Starting screen share")
+    #     try:
+    #         stream = ScreenShareTrack()
+    #         sender = self.pc.addTrack(stream)
+    #         logger.info(f"Added screen share track to peer connection: {sender}")
+    #         await self.send_local_description()
+    #         await asyncio.create_task(stream.recv())
+    #         logger.info("Screen share started successfully")
+    #     except Exception as e:
+    #         logger.error(f"Error starting screen share: {e}")
+    async def start_screen_share(self):
+
+        logger.info("Starting screen share")
+        try:
+            self.screen_share_track = ScreenShareTrack()
+            self.screen_share_sender = self.pc.addTrack(self.screen_share_track)
+            logger.info(f"Added screen share track to peer connection: {self.screen_share_sender}")
+
+            await self.send_local_description()
+            await self.receive_messages()
+            # Create a flag to control the loop
+            await self.screen_share_track.capture_frame()
+
+
+            logger.info("Screen share started successfully")
+        except Exception as e:
+            logger.error(f"Error starting screen share: {e}")
+
+    async def capture_loop(self):
+        while self.screen_sharing:
+            try:
+                await self.screen_share_track.recv()
+                await asyncio.sleep(1 / 30)  # Adjust this value to control frame rate
+            except Exception as e:
+                logger.error(f"Error in screen capture loop: {e}")
+                break  # Exit the loop on error
+
+        logger.info("Screen sharing stopped")
+
+    async def stop_screen_share(self):
+        self.screen_sharing = False
+        # Remove the track from the peer connection
+        self.pc.removeTrack(self.screen_share_sender)
+        # Close the screen share track if it has a close method
+        if hasattr(self.screen_share_track, 'close'):
+            await self.screen_share_track.close()
+        self.screen_share_track = None
+        self.screen_share_sender = None

@@ -1,16 +1,17 @@
 ### Usage 
+JSESSIONID=7C695589EAF8019DFA294976402C14C2; sessionID=; _greenlight-3_0_session=oYkB8NOhP1fvza0ojHPn0E649BSxFy3b0cabAsI8xOFsu2zilUXSUkhEGuRWim5qQbHk706tadrsH%2FiyMG%2BSu8gGEiSCGzdLWn5qrLcL2Jg8JGYovDUTgNgI7%2FB3Z7ndgB5V7AaFgwvhEoXjlUKV0E7X3ydCql4Z1lBEr1OhVGfKmseCfv8Wxw%2BggMVwVXaxXvKwbo8CxmaM0bHtpeNhBUnjSqbroy30EeRtwA%2F%2BllCszjIDLkmJENldhl6dTnaQyhl9L6atTl48oXskcKRvICj%2BmuohryxoVStDXWdznUiashFC8beCCYv8Zy3Vdt9I13y2UFlBDvlpfXNHd4X6GS9AlcyvDhOMyS541a2pF8lfm566eRJQsX0IsLfBJAHF1ElxmEWQEw2qzsc3k%2Fx0DVt9GDfJc9sdUky0V6UUDvZiphgXpLcxm40Ydg%3D%3D--kINqVZ7ny5UqoyP%2F--FDQkWCq7WHnTE2SmR2bQkw%3D%3D
 
 # 
     python3 AiortcBBB.py \
-    --ws_url "wss://bbb.ostedhy.tn/bbb-webrtc-sfu?sessionToken=7cvithhhxjsm5vuv" \
+    --ws_url "wss://bbb.ostedhy.tn/bbb-webrtc-sfu?sessionToken=h8pplqczwz9pdeur" \
     --sfu_component "screenshare" \
     --role "send" \
-    --internalMeetingId "7c22338bce3c6e485ac2f2d872f2f24816d53011-1718092523886" \
+    --internalMeetingId "7c22338bce3c6e485ac2f2d872f2f24816d53011-1719477978904" \
     --userName "Amir" \
-    --voice_bridge "66711" \
-    --callerName "w_upakl74suq3s" \
-    --cookies "_greenlight-3_0_session=eGX30V5NXtAH9LBHMXmKRosawsetd%2BOkVh4zwILG3m0RIoDc4eFovCeXknHeYdeq2WOKbeubD2HJDgI6ADrKFvXpinXdDHb%2FzZvUnRh%2FKCucyHORIjc61EKGYHt8yyF%2BGC8BFupYF%2FVDF5gSbjIXtb9KoQxP7MZL1O32OKMcr3XFe3%2FSOncbidmKEf%2F3FOSwBGX%2BAQHvvrt3F6qM8KUVHgTCLbJhQLGgnP2w1OsDuIHOy1Eeys5r0FiuDWRFZYg%2BhCxW7F%2BK9Gh69btG42GUW5pvh%2FxAzKGp6dabMb%2F4Tkkx%2FdGcdkRxuUpXPSXmofzHAYHie%2Bvm5Xs1FNt1F0H55D%2FiE4x0uOu4M%2FwwlsK5uK4SCSvZP8H755est6VDZRIQ8vDTY2a2mSVeNNQn4ExQmtpHFoj0f8zG09qwkQMa3x7cJf%2BF%2FB9wtuwoOw%3D%3D--O3OldhhhpjBzHlOv--iCE%2BLAyjm5TC7q0wT7BU%2Bw%3D%3D; JSESSIONID=BECC668454B5F2EBCD7D9E249274BBA9" \
-    --turn_servers '[{"username": "1718178928:w_upakl74suq3s","password": "QXbTGY/LGtxSD+Abv8Bled//VFg=","url": "turns:bbb.ostedhy.tn:443?transport=tcp","ttl": 86400},{"username": "1718178928:w_upakl74suq3s","password": "QXbTGY/LGtxSD+Abv8Bled//VFg=","url": "turn:bbb.ostedhy.tn:3478","ttl": 86400}]'
+    --voice_bridge "81226" \
+    --callerName "w_cz8eyevusklg" \
+    --cookies "_greenlight-3_0_session=d1DCyqjJNwTeendBEDsmsHHuHjkjUgloD5DZJvyCBRy6mf5eXt1VuH%2BfuA690OVL%2BD8pFYhaQWuuD63Q4CIL%2B4w%2Ft7IYsYqQt5rKCwglR9ay%2FwknbpZSWAgZfirvxd2ZCgEAakVaTbbzSBfQIFctXt3eWvrHtliF3mPJN%2BumSdzz4ha4zQ%2FsQwnqO%2FhfQGC2acb%2FP0R41683zLIWqzFbyfLxweDPdpz6t0xscxWoegdZ6NtEc1004iWHv0WpxeC%2FOzeWXZvxN1kyw%2BXvkbuGb6gTkbPKOyCQUONshJBafacu2aDO%2BwfecKHu98NMWP29vOieWZzIcGtgm294X%2FOPxzBC87f3fzkdDlU2b%2F1C6c7a8g4e3JIBeO1Fvrc%2BHmHOd%2FwHTXcEEEetrBLGIZqD8FqRXhgPLdMviS2NnZZ0nWPxEP6o8fGK7899Ig%3D%3D--fCdpI4xoqtRHTRVm--4B9hbmfwPGHK%2FjHRpAczzQ%3D%3D; JSESSIONID=210C2A06D2E831A91B7C6D2B76DFDD98" \
+    --turn_servers '[{"username": "1720077352:w_b7ddgoxmxirc","password": "mkggCux9SN8xhbtVFYyM2VZI9Kc=","url": "turn:bbb.ostedhy.tn:3478","ttl": 86400}]'
 o=- 3926879746 3926879746 IN IP4 0.0.0.0
 s=-
 t=0 0
