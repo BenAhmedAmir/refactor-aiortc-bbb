@@ -2,7 +2,6 @@ import logging
 
 
 def configure_logger():
-    """Configure and return the logger."""
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
 

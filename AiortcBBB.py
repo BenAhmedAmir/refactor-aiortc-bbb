@@ -17,12 +17,12 @@ parser.add_argument("--voice_bridge", type=str, required=True, help="Voice bridg
 parser.add_argument("--internalMeetingId", type=str, required=True, help="Internal MeetingId")
 parser.add_argument("--userName", type=str, required=True, help="User name")
 parser.add_argument("--callerName", type=str, required=True, help="Caller Name")
-parser.add_argument("--cookies", type=str, required=True, help="Cookies for WebSocket connection")
+# parser.add_argument("--cookies", type=str, required=True, help="Cookies for WebSocket connection")
 # parser.add_argument("--turn_servers", type=str, required=True, help="TURN servers in JSON format")
 args = parser.parse_args()
 
 try:
-    turn_servers = json.loads('[{"username": "1720795402:w_kbotx8fxqz5k","password": "gLamQbnyg9wVU6ID3JrFiLEob48=","url": "turn:bbb.ostedhy.tn:3478","ttl": 86400}]')
+    turn_servers = json.loads('[{"username": "1722410059:w_saduaq0sx7nq","password": "AC5GX8vs5+9D/D+i7fUNQajvtvU=","url": "turn:bbb.ostedhy.tn:3478","ttl": 8640}]')
 except json.JSONDecodeError as e:
     print(f"Invalid TURN servers JSON: {e}")
     sys.exit(1)
@@ -35,7 +35,7 @@ ws_client_args = {
     "internalMeetingId": args.internalMeetingId,
     "userName": args.userName,
     "callerName": args.callerName,
-    "cookies": args.cookies,
+    # "cookies": args.cookies,
     "turn_servers": turn_servers
 }
 

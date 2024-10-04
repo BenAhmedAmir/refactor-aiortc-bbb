@@ -43,6 +43,17 @@ def modify_sdp(sdp):
     return '\r\n'.join(sdp_lines)
 
 
+def on_track(track):
+    if track.kind == "video":
+        @track.on("ended")
+        def on_ended():
+            logger.info("Remote video track ended")
+
+        @track.on("rtcpreceivereport")
+        def on_rtcpreceivereport(report):
+            logger.info(f"RTCP Receiver Report: {report}")
+
+
 class WebSocketClient:
     def __init__(self, **kwargs):
         self.screen_sharing = None
@@ -50,24 +61,26 @@ class WebSocketClient:
         self.screen_share_sender = None
         self.id = kwargs.get("id", "start")
         self.type = kwargs.get("sfu_component", "screenshare")
-        self.contentType = kwargs.get("sfu_component", "screenshare")
+        self.contentType = kwargs.get("sfu_component", "camera")
         self.internalMeetingId = kwargs.get("internalMeetingId")
         self.voiceBridge = kwargs.get("voiceBridge")
         self.userName = kwargs.get("userName")
         self.callerName = kwargs.get("callerName")
         self.hasAudio = kwargs.get("hasAudio", False)
         self.bitrate = kwargs.get("bitrate", 1500)
-        self.cookies = kwargs.get("cookies")
+        # self.cookies = kwargs.get("cookies")
         self.turn_servers = kwargs.get("turn_servers", [])
         self.ws_url = kwargs.get("ws_url")
         self.role = kwargs.get("role", "viewer")  # Ensure role is provided
         self.pc = RTCPeerConnection(RTCConfiguration(iceServers=self._parse_turn_servers()))
         self.websocket = None
+        self.pc.on("track", on_track)
 
     async def connect(self):
         """Establish a connection to the WebSocket server."""
         try:
-            self.websocket = await websockets.connect(self.ws_url, extra_headers={"Cookie": self.cookies})
+            self.websocket = await websockets.connect(self.ws_url)
+
             logger.info(f"Connected to WebSocket server at {self.ws_url}")
 
             # Setup event handlers for ICE candidates
@@ -102,12 +115,12 @@ class WebSocketClient:
         else:
             raise ValueError("No video transceiver found")
 
-            # Get available codecs
+        # Get available codecs
         capabilities = RTCRtpSender.getCapabilities("video")
         available_codecs = capabilities.codecs
 
         # Define the codecs you want to use, in order of preference
-        preferred_codec_names = ["VP8", "H264", "VP9"]
+        preferred_codec_names = ["VP8"]
 
         # Filter and order codecs based on preferences and availability
         preferred_codecs = []
@@ -131,6 +144,7 @@ class WebSocketClient:
 
     async def wait_for_ice_gathering(self):
         """Wait for ICE gathering to complete."""
+        logger.info("waiting 10 secondes  ...")
         await asyncio.sleep(0.5)  # Small delay to ensure ICE candidates are gathered
         while True:
             connection_state = self.pc.iceConnectionState
@@ -149,28 +163,42 @@ class WebSocketClient:
             "type": self.type,
             "contentType": self.contentType,
             "role": self.role,
-            "internalMeetingId": self.internalMeetingId,
-            "voiceBridge": self.voiceBridge,
-            "userName": self.userName,
-            "callerName": self.callerName,
-            "sdpOffer": sdp,
+            # "internalMeetingId": self.internalMeetingId,
+            # "voiceBridge": self.voiceBridge,
+            # "userName": self.userName,
+            # "callerName": self.callerName,
+            "sdpOffer": local_description.sdp,
             "hasAudio": self.hasAudio,
-            "bitrate": self.bitrate
+            # "bitrate": self.bitrate
         }
-        ping = {"id": "ping"}
-        await self.send_message(ping)
+        # ping = {"id": "ping"}
+        # await self.send_message(ping)
         await self.send_message(message)
+
+    async def get_stats(self):
+        """Get WebRTC stats."""
+        try:
+            # Get stats from the RTCPeerConnection
+            stats = await self.pc.getStats()
+
+            # Log the stats
+            # for stat in stats.values():
+            logger.info(f"Stat {stats}")
+
+        except Exception as error:
+            logger.error(f"Failed to get WebRTC stats: {error}")
 
     async def receive_messages(self):
         try:
             async for message in self.websocket:
                 logger.info(f"Received message: {message}")
                 await self.handle_message(message)
+                await asyncio.sleep(5)
+                await self.get_stats()
                 data = ast.literal_eval(message)
                 if data.get('id') == 'playStart':
                     self.screen_sharing = True
-                    # Start a continuous capture loop
-                    await asyncio.create_task(self.capture_loop())
+                    pass
         except Exception as error:
             logger.error(f"Error receiving messages: {error}")
         finally:
@@ -236,12 +264,12 @@ class WebSocketClient:
     async def wait_until_stopped(self):
         """Wait until the media is stopped."""
         while self.status != 'MEDIA_STOPPED':
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(10)
 
     async def wait_until_negotiated(self):
         """Wait until the media is negotiated."""
         while self.status != 'MEDIA_NEGOTIATED':
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(10)
 
     async def stop_presenter(self):
         """Stop the presenter and handle errors."""
@@ -259,19 +287,7 @@ class WebSocketClient:
     async def restart_ice(self):
         pass
 
-    # async def start_screen_share(self):
-    #     logger.info("Starting screen share")
-    #     try:
-    #         stream = ScreenShareTrack()
-    #         sender = self.pc.addTrack(stream)
-    #         logger.info(f"Added screen share track to peer connection: {sender}")
-    #         await self.send_local_description()
-    #         await asyncio.create_task(stream.recv())
-    #         logger.info("Screen share started successfully")
-    #     except Exception as e:
-    #         logger.error(f"Error starting screen share: {e}")
     async def start_screen_share(self):
-
         logger.info("Starting screen share")
         try:
             self.screen_share_track = ScreenShareTrack()
@@ -280,9 +296,12 @@ class WebSocketClient:
 
             await self.send_local_description()
             await self.receive_messages()
-            # Create a flag to control the loop
-            await self.screen_share_track.capture_frame()
+            # Start the capture loop as a separate task
+            self.screen_sharing = True
+            await asyncio.create_task(self.capture_loop())
 
+            # Start receiving messages
+            # await self.receive_messages()
 
             logger.info("Screen share started successfully")
         except Exception as e:
@@ -291,20 +310,26 @@ class WebSocketClient:
     async def capture_loop(self):
         while self.screen_sharing:
             try:
-                await self.screen_share_track.recv()
-                await asyncio.sleep(1 / 30)  # Adjust this value to control frame rate
+                frame = await self.screen_share_track.capture_frame()
+                # Here you can add any additional processing if needed
+                await asyncio.sleep(10)  # Yield control to the event loop
             except Exception as e:
                 logger.error(f"Error in screen capture loop: {e}")
-                break  # Exit the loop on error
+                if self.screen_sharing:
+                    await asyncio.sleep(10)  # Wait before retrying if still sharing
+                else:
+                    break
 
         logger.info("Screen sharing stopped")
 
     async def stop_screen_share(self):
         self.screen_sharing = False
-        # Remove the track from the peer connection
-        self.pc.removeTrack(self.screen_share_sender)
-        # Close the screen share track if it has a close method
-        if hasattr(self.screen_share_track, 'close'):
+        if self.screen_share_sender:
+            self.pc.removeTrack(self.screen_share_sender)
+        if self.screen_share_track:
             await self.screen_share_track.close()
         self.screen_share_track = None
         self.screen_share_sender = None
+        logger.info("Screen share stopped")
+
+
